@@ -26,12 +26,21 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        // 2. Requesting user to give permission to access phone contacts
-        contactStore.requestAccess(for: .contacts) { (success, error) in
-            print("Authorization Successful.")
-        }
         
-        // 3. Create a usage description in Info.plist to access privacy-sensitive data (contacts) with a usage description
+        // 2. Create a usage description in Info.plist to access privacy-sensitive data (contacts) with a usage description
+        // 3. Requesting user to give permission to access phone contacts
+        contactStore.requestAccess(for: .contacts) { (granted, error) in
+            if let error = error {
+                print("Failed to request access : ", error)
+            }
+            
+            if granted {
+                print("Access Granted.")
+            }
+            else {
+                print("Access Denied.")
+            }
+        }
         
         fetchContacts()
         
@@ -41,21 +50,28 @@ class ViewController: UIViewController {
     func fetchContacts() {
         
         // Creating a Key which will be an array of required data from contact store
-        let key = [CNContactGivenNameKey, CNContactFamilyNameKey, CNContactPhoneNumbersKey] as! [CNKeyDescriptor]
+        let key = [CNContactGivenNameKey, CNContactFamilyNameKey, CNContactPhoneNumbersKey] as [CNKeyDescriptor]
         
         // Creating a fetch request to contact store with a key
         let request = CNContactFetchRequest(keysToFetch: key)
         
-        // Making request to contacts store
-        try! contactStore.enumerateContacts(with: request) { (contact, stop) in
-        
-            let name = contact.givenName
-            let familyName = contact.familyName
-            let number = contact.phoneNumbers.first?.value.stringValue
-        
-            let contactsToAppend = contactStruct(givenName: name, familyName: familyName, number: number!)
-            self.contactData.append(contactsToAppend)
+        do {
+            // Making request to contacts store
+            try contactStore.enumerateContacts(with: request) { (contact, stopPointer) in
             
+                let name = contact.givenName
+                let familyName = contact.familyName
+                let number = contact.phoneNumbers.first?.value.stringValue
+            
+                print(contact.givenName)
+                print(contact.phoneNumbers.first?.value.stringValue ?? "no number")
+                
+                let contactsToAppend = contactStruct(givenName: name, familyName: familyName, number: number!)
+                self.contactData.append(contactsToAppend)
+                
+            }
+        } catch let error {
+            print("Failed to enumerate contacts store : ", error.localizedDescription)
         }
         
         tableView.reloadData()
@@ -76,6 +92,7 @@ extension ViewController: UITableViewDelegate, UITableViewDataSource {
         let cell = UITableViewCell(style: .subtitle, reuseIdentifier: nil)
         let contactToDisplay = contactData[indexPath.row]
         cell.textLabel?.text = contactToDisplay.givenName + " " + contactToDisplay.familyName
+        cell.textLabel?.font = UIFont.boldSystemFont(ofSize: 15)
         cell.detailTextLabel?.text = contactToDisplay.number
         return cell
     }
